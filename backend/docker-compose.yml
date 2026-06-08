@@ -1,0 +1,13 @@
+# Run the backend on a Raspberry Pi (or any Docker host), always-on.
+#   docker compose up -d --build
+# It listens on port 8080 and restarts automatically on boot/crash.
+services:
+  backend:
+    build: .
+    image: wuvt-replay-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Days of schedule history to scan for the "sort DJs by latest set" feature.
+      - RECENCY_LOOKBACK_DAYS=45

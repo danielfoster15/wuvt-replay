@@ -1,0 +1,19 @@
+# Fly.io config for the wuvt-replay backend.
+# First time:  fly launch --no-deploy --copy-config   (or just `fly deploy`)
+# Update name below if Fly tells you it's taken.
+
+app = "wuvt-replay"
+primary_region = "iad"  # Ashburn, VA — close to Virginia Tech
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0  # scale to zero when idle (free-friendly)
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
