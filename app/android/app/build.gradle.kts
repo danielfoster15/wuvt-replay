@@ -27,9 +27,14 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // Don't shrink/obfuscate: R8 was stripping audio_service's media-control
+            // drawable resources (referenced by name), so the notification's action
+            // icons resolved to 0 and the media notification + lock-screen controls
+            // failed to build ("You must specify an icon resource id ...").
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

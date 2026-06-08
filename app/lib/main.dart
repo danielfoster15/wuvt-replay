@@ -8,16 +8,18 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Background playback + lock-screen controls (not supported on web).
   if (!kIsWeb) {
-    try {
-      await JustAudioBackground.init(
-        androidNotificationChannelId: 'app.wuvt.wuvt_replay.audio',
-        androidNotificationChannelName: 'WUVT Archive playback',
-        androidNotificationOngoing: true,
-      ).timeout(const Duration(seconds: 10));
-    } catch (e) {
-      // Never let background-audio setup block app startup.
-      debugPrint('JustAudioBackground.init failed: $e');
-    }
+    // Standard init (no timeout): the AudioServiceActivity fix already prevents
+    // the hang this previously guarded against, and a timeout here can abort the
+    // native audio_service setup partway — which breaks the media notification /
+    // lock-screen controls while leaving plain playback working.
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'app.wuvt.wuvt_replay.audio',
+      androidNotificationChannelName: 'WUVT Archive playback',
+      androidNotificationOngoing: true,
+      // Dedicated white status-bar icon. The default (mipmap/ic_launcher) is now
+      // an adaptive icon, which is invalid as a notification small icon.
+      androidNotificationIcon: 'drawable/ic_stat_wuvt',
+    );
   }
   runApp(const WuvtReplayApp());
 }

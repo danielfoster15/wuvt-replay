@@ -54,7 +54,12 @@ class PlayerService {
       // Tear down any current playback before swapping in the new set, so the
       // previous audio can't keep playing underneath the new source.
       await player.stop();
-      await player.setAudioSources(sources);
+      // Use setAudioSource + ConcatenatingAudioSource (deprecated but supported):
+      // just_audio_background bridges playback events for this path, which is
+      // what drives the media notification + lock-screen controls. The newer
+      // setAudioSources() set the metadata but never broadcast the play state.
+      // ignore: deprecated_member_use
+      await player.setAudioSource(ConcatenatingAudioSource(children: sources));
     } on PlayerInterruptedException {
       // A newer loadSet() superseded this one (rapid set switching) — ignore.
     }
