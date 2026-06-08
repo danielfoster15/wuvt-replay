@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../api.dart';
 import '../models.dart';
@@ -21,6 +22,9 @@ class _DjListScreenState extends State<DjListScreen> {
   void initState() {
     super.initState();
     _future = _api.djs();
+    // Needed (Android 13+) for the media notification that keeps background
+    // playback alive. Fire-and-forget; safe if already granted.
+    Permission.notification.request();
   }
 
   void _reload() => setState(() => _future = _api.djs());

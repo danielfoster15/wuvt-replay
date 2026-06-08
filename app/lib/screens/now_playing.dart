@@ -278,14 +278,13 @@ class _TrackList extends StatelessWidget {
           itemBuilder: (context, i) {
             final t = tracks[i];
             final isCurrent = i == current;
+            final cs = Theme.of(context).colorScheme;
             return Container(
-              color: isCurrent
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : null,
+              color: isCurrent ? cs.tertiaryContainer : null,
               child: ListTile(
                 dense: true,
                 leading: isCurrent
-                    ? const Icon(Icons.volume_up)
+                    ? Icon(Icons.volume_up, color: cs.tertiary)
                     : Text(
                         t.offsetMs == null
                             ? ''
