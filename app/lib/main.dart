@@ -8,11 +8,16 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Background playback + lock-screen controls (not supported on web).
   if (!kIsWeb) {
-    await JustAudioBackground.init(
-      androidNotificationChannelId: 'app.wuvt.wuvt_replay.audio',
-      androidNotificationChannelName: 'WUVT Archive playback',
-      androidNotificationOngoing: true,
-    );
+    try {
+      await JustAudioBackground.init(
+        androidNotificationChannelId: 'app.wuvt.wuvt_replay.audio',
+        androidNotificationChannelName: 'WUVT Archive playback',
+        androidNotificationOngoing: true,
+      ).timeout(const Duration(seconds: 10));
+    } catch (e) {
+      // Never let background-audio setup block app startup.
+      debugPrint('JustAudioBackground.init failed: $e');
+    }
   }
   runApp(const WuvtReplayApp());
 }

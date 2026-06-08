@@ -1,5 +1,8 @@
 package app.wuvt.wuvt_replay
 
-import io.flutter.embedding.android.FlutterActivity
+import com.ryanheise.audioservice.AudioServiceActivity
 
-class MainActivity : FlutterActivity()
+// Must extend AudioServiceActivity (not FlutterActivity) so the UI and the
+// just_audio_background audio service share one Flutter engine. With a plain
+// FlutterActivity, JustAudioBackground.init() hangs and the app never starts.
+class MainActivity : AudioServiceActivity()
