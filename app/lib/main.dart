@@ -1,11 +1,18 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:isolate';
+import 'dart:ui' show IsolateNameServer;
+
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
+import 'focus_timer.dart';
 import 'screens/dj_list.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final onAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
   // Background playback + lock-screen controls (not supported on web).
   if (!kIsWeb) {
     // Standard init (no timeout): the AudioServiceActivity fix already prevents
@@ -20,6 +27,15 @@ Future<void> main() async {
       // an adaptive icon, which is invalid as a notification small icon.
       androidNotificationIcon: 'drawable/ic_stat_wuvt',
     );
+  }
+  if (onAndroid) {
+    // Exact alarm that ends a break reliably even in Doze. The alarm fires in
+    // its own isolate; this named port lets it signal the running app to resume.
+    await AndroidAlarmManager.initialize();
+    final port = ReceivePort();
+    IsolateNameServer.removePortNameMapping(FocusTimer.alarmPortName);
+    IsolateNameServer.registerPortWithName(port.sendPort, FocusTimer.alarmPortName);
+    port.listen((_) => FocusTimer.instance.onAlarmFired());
   }
   runApp(const WuvtReplayApp());
 }

@@ -1,9 +1,19 @@
 import 'dart:async';
+import 'dart:ui' show IsolateNameServer;
 
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
 import 'audio_service.dart';
+
+/// Runs in a background isolate when a break's exact alarm fires — even if the
+/// app is dozing. Signals the main isolate (if alive) to end the break and
+/// resume the music.
+@pragma('vm:entry-point')
+void breakAlarmCallback() {
+  IsolateNameServer.lookupPortByName(FocusTimer.alarmPortName)?.send(true);
+}
 
 /// Which kind of timed session is running.
 enum SessionMode {
@@ -33,6 +43,10 @@ class FocusTimer extends ChangeNotifier {
 
   static const minMinutes = 1;
   static const maxMinutes = 120;
+
+  /// Named port the break's alarm isolate sends to (see [breakAlarmCallback]).
+  static const alarmPortName = 'wuvt_break_alarm';
+  static const _alarmId = 424242;
 
   SessionMode _mode = SessionMode.focus;
   int _minutes = 45; // chosen duration
@@ -73,9 +87,24 @@ class FocusTimer extends ChangeNotifier {
       // Remember where we are, then play the set muted+looping for the break.
       _breakResumeMs = svc.globalPosition(svc.player.position).inMilliseconds;
       unawaited(svc.startMutedBreak());
+      // Reliable OS trigger: fires even if this Dart timer is frozen in Doze.
+      unawaited(AndroidAlarmManager.oneShotAt(
+        DateTime.now().add(Duration(minutes: _minutes)),
+        _alarmId,
+        breakAlarmCallback,
+        exact: true,
+        wakeup: true,
+        alarmClock: true,
+        rescheduleOnReboot: false,
+      ));
     }
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     notifyListeners();
+  }
+
+  /// Called on the main isolate when the break's exact alarm fires.
+  void onAlarmFired() {
+    if (_running && _mode == SessionMode.breakTime) _finishBreak();
   }
 
   /// Cancel the timer. A canceled break restores audible playback at the
@@ -85,6 +114,7 @@ class FocusTimer extends ChangeNotifier {
     final wasBreak = _mode == SessionMode.breakTime;
     _stopTicker();
     if (wasBreak) {
+      unawaited(AndroidAlarmManager.cancel(_alarmId));
       unawaited(PlayerService.instance.endMutedBreak(_breakResumeMs, play: false));
     }
     notifyListeners();
@@ -117,6 +147,7 @@ class FocusTimer extends ChangeNotifier {
 
   void _finishBreak() {
     _stopTicker();
+    unawaited(AndroidAlarmManager.cancel(_alarmId)); // whoever fired first wins
     // Break's over: unmute and resume audible playback where we left off.
     unawaited(PlayerService.instance.endMutedBreak(_breakResumeMs, play: true));
     HapticFeedback.heavyImpact(); // a felt cue that the music is back

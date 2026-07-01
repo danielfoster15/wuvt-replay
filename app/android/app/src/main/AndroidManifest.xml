@@ -7,6 +7,11 @@
     <!-- Required (Android 13+) to show the media notification that keeps the
          foreground service — and thus background playback — alive. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Exact alarm to end a break on time even in Doze (android_alarm_manager_plus).
+         USE_EXACT_ALARM (Android 13+) grants it without a runtime prompt; the
+         SCHEDULE_EXACT_ALARM fallback covers Android 12. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <application
         android:label="wuvt_replay"
         android:name="${applicationName}"
