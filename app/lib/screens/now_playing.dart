@@ -7,6 +7,7 @@ import '../api.dart';
 import '../audio_service.dart';
 import '../focus_timer.dart';
 import '../models.dart';
+import '../resume_store.dart';
 import '../util.dart';
 
 class NowPlayingScreen extends StatefulWidget {
@@ -35,6 +36,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
   bool _playbackError = false;
   int _retries = 0;
   StreamSubscription<PlaybackEvent>? _eventSub;
+  Timer? _saveTimer;
 
   AudioPlayer get _player => _svc.player;
 
@@ -47,11 +49,16 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
       (_) {},
       onError: (Object e, StackTrace st) => _onPlaybackError(),
     );
+    // Persist the listening position so reopening the set resumes here.
+    _saveTimer =
+        Timer.periodic(const Duration(seconds: 5), (_) => _savePosition());
     _load();
   }
 
   @override
   void dispose() {
+    _saveTimer?.cancel();
+    _savePosition();
     _eventSub?.cancel();
     super.dispose();
   }
@@ -63,12 +70,28 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
       setState(() => _set = set);
       if (set.available && !_svc.isLoaded(set.id)) {
         await _svc.loadSet(set);
+        // Resume where we left off, unless that's right at the start or end.
+        final saved = await ResumeStore.instance.load(set.id);
+        final total = _svc.total.inMilliseconds;
+        if (saved != null && saved > 3000 && saved < total - 5000) {
+          await _svc.seekGlobal(Duration(milliseconds: saved));
+        }
         // Don't await: play()'s future only completes when playback *ends*.
         unawaited(_player.play());
       }
     } catch (e) {
       if (mounted) setState(() => _error = e);
     }
+  }
+
+  /// Save the current whole-set position for this set, unless a break is
+  /// running (its playback is muted and seeks around, so not a real position).
+  void _savePosition() {
+    if (!_svc.isLoaded(widget.setId)) return;
+    final ft = FocusTimer.instance;
+    if (ft.running && ft.mode == SessionMode.breakTime) return;
+    final pos = _svc.globalPosition(_player.position).inMilliseconds;
+    ResumeStore.instance.save(widget.setId, pos);
   }
 
   void _onPlaybackError() {
