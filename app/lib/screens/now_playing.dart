@@ -5,6 +5,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../api.dart';
 import '../audio_service.dart';
+import '../focus_timer.dart';
 import '../models.dart';
 import '../util.dart';
 
@@ -138,6 +139,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
             ],
           ),
         _Controls(svc: _svc),
+        const _FocusTimerPanel(),
         _SeekBar(
           svc: _svc,
           dragMs: _dragMs,
@@ -209,6 +211,127 @@ class _Controls extends StatelessWidget {
             ),
           ],
         );
+      },
+    );
+  }
+}
+
+/// Session timer with two modes (see [FocusTimer]):
+/// - Focus: play the set, stop after N minutes of listening.
+/// - Break: pause for N minutes, then start the set (a cue to get back to it).
+class _FocusTimerPanel extends StatelessWidget {
+  const _FocusTimerPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = FocusTimer.instance;
+    final cs = Theme.of(context).colorScheme;
+    return ListenableBuilder(
+      listenable: t,
+      builder: (context, _) {
+        final isBreak = t.mode == SessionMode.breakTime;
+        return Card(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+          color: cs.surfaceContainerHighest,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!t.running)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8, bottom: 6),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<SessionMode>(
+                        segments: const [
+                          ButtonSegment(
+                            value: SessionMode.focus,
+                            label: Text('Focus'),
+                            icon: Icon(Icons.headphones),
+                          ),
+                          ButtonSegment(
+                            value: SessionMode.breakTime,
+                            label: Text('Break'),
+                            icon: Icon(Icons.coffee),
+                          ),
+                        ],
+                        selected: {t.mode},
+                        onSelectionChanged: (s) => t.setMode(s.first),
+                        showSelectedIcon: false,
+                      ),
+                    ),
+                  ),
+                Row(
+                  children: [
+                    Icon(isBreak ? Icons.coffee : Icons.timer_outlined,
+                        color: cs.primary),
+                    const SizedBox(width: 10),
+                    Text(isBreak ? 'Break timer' : 'Focus timer',
+                        style: TextStyle(
+                            color: cs.primary, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    Text(
+                      t.running ? fmtDuration(t.remaining) : '${t.minutes} min',
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontFeatures: const [
+                        FontFeature.tabularFigures(),
+                      ]),
+                    ),
+                    IconButton(
+                      tooltip: t.running ? 'Cancel timer' : 'Start timer',
+                      icon: Icon(t.running ? Icons.stop : Icons.play_arrow),
+                      onPressed: () => t.running ? t.cancel() : t.start(),
+                    ),
+                  ],
+                ),
+                if (t.running)
+                  _TimerCaption(isBreak: isBreak)
+                else
+                  Slider(
+                    value: t.minutes.toDouble(),
+                    min: FocusTimer.minMinutes.toDouble(),
+                    max: FocusTimer.maxMinutes.toDouble(),
+                    divisions: FocusTimer.maxMinutes - FocusTimer.minMinutes,
+                    label: '${t.minutes} min',
+                    onChanged: (v) => t.setMinutes(v.round()),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// One-line status under a running timer. Break: fixed cue. Focus: reflects
+/// whether the countdown is currently advancing (i.e. the music is playing).
+class _TimerCaption extends StatelessWidget {
+  const _TimerCaption({required this.isBreak});
+  final bool isBreak;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget caption(String text) => Padding(
+          padding: const EdgeInsets.fromLTRB(0, 0, 10, 4),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child:
+                Text(text, style: Theme.of(context).textTheme.bodySmall),
+          ),
+        );
+
+    if (isBreak) return caption('Music starts when the timer ends');
+    return StreamBuilder<bool>(
+      stream: PlayerService.instance.player.playingStream,
+      builder: (context, snap) {
+        final playing = snap.data ?? false;
+        return caption(playing
+            ? 'Counts down while the music plays'
+            : 'Paused — timer holds until you resume');
       },
     );
   }

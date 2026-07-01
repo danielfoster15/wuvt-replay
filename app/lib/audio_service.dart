@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
@@ -14,6 +16,7 @@ class PlayerService {
   final AudioPlayer player = AudioPlayer();
 
   int? loadedSetId;
+  SetDetail? loadedSet;
   List<int> _cumulativeMs = const [];
   int _totalMs = 0;
 
@@ -22,6 +25,7 @@ class PlayerService {
   /// Build the clip+concatenate source for [set] and load it (paused).
   Future<void> loadSet(SetDetail set) async {
     loadedSetId = set.id;
+    loadedSet = set;
 
     _cumulativeMs = [];
     var acc = 0;
@@ -88,6 +92,32 @@ class PlayerService {
         break;
       }
     }
-    await player.seek(Duration(milliseconds: ms - _cumulativeMs[idx]), index: idx);
+    await player.seek(
+      Duration(milliseconds: ms - _cumulativeMs[idx]),
+      index: idx,
+    );
+  }
+
+  /// Enter "break" playback: loop the set muted from the start, so real audio
+  /// keeps the app (and its foreground service) alive with nothing audible.
+  /// Looping means it never runs out no matter how long the break is.
+  Future<void> startMutedBreak() async {
+    await player.setLoopMode(LoopMode.all);
+    await player.setVolume(0);
+    await seekGlobal(Duration.zero);
+    unawaited(player.play()); // play()'s future only completes when playback ends
+  }
+
+  /// End "break" playback: stop looping, restore volume, and jump back to the
+  /// position the break started from. [play] resumes audible playback there.
+  Future<void> endMutedBreak(int resumeMs, {required bool play}) async {
+    await player.setLoopMode(LoopMode.off);
+    await seekGlobal(Duration(milliseconds: resumeMs));
+    await player.setVolume(1);
+    if (play) {
+      unawaited(player.play());
+    } else {
+      await player.pause();
+    }
   }
 }
