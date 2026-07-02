@@ -10,7 +10,7 @@ import '../models.dart';
 import '../resume_store.dart';
 import '../theme.dart';
 import '../util.dart';
-import '../widgets/artwork.dart';
+import '../widgets/vinyl.dart';
 
 class NowPlayingScreen extends StatefulWidget {
   const NowPlayingScreen({
@@ -199,12 +199,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                   ),
                 const SizedBox(height: 8),
                 FractionallySizedBox(
-                  widthFactor: 0.68,
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: ArtTile(
-                        seed: widget.djName, radius: 14, shadow: true),
-                  ),
+                  widthFactor: 0.72,
+                  child: SpinningVinyl(seed: widget.djName),
                 ),
                 const SizedBox(height: 28),
                 Align(
