@@ -60,11 +60,12 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
 
 # App icon generation (run: dart run flutter_launcher_icons).
-# Sources are produced from the WUVT logo into assets/icon/ by tooling.
+# Sources in assets/icon/ are generated to match the vintage-pastel design
+# system (seafoam->flax gradient + WUVT wordmark), see theme.dart.
 flutter_launcher_icons:
   android: true
   image_path: "assets/icon/icon.png"
-  adaptive_icon_background: "#241A15"
+  adaptive_icon_background: "assets/icon/background.png"
   adaptive_icon_foreground: "assets/icon/foreground.png"
   min_sdk_android: 24
 
