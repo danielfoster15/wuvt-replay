@@ -58,3 +58,31 @@ class SetDetail(BaseModel):
     available: bool  # false => no archives yet (set not ended/uploaded)
     segments: list[Segment]
     tracks: list[TrackLog]
+
+
+class BackendHealth(BaseModel):
+    ok: bool
+    version: str
+    uptime_sec: int
+
+
+class NextcloudHealth(BaseModel):
+    ok: bool
+    version: str | None = None
+    maintenance: bool | None = None
+    error: str | None = None
+
+
+class StorageHealth(BaseModel):
+    ok: bool
+    free_gb: float | None = None
+    total_gb: float | None = None
+    error: str | None = None
+
+
+class Health(BaseModel):
+    ok: bool  # all components ok
+    checked_at: str
+    backend: BackendHealth
+    nextcloud: NextcloudHealth
+    storage: StorageHealth

@@ -122,6 +122,76 @@ class TrackLog {
       );
 }
 
+class BackendHealth {
+  final bool ok;
+  final String version;
+  final int uptimeSec;
+
+  BackendHealth({required this.ok, required this.version, required this.uptimeSec});
+
+  factory BackendHealth.fromJson(Map<String, dynamic> j) => BackendHealth(
+        ok: (j['ok'] ?? false) as bool,
+        version: (j['version'] ?? '') as String,
+        uptimeSec: (j['uptime_sec'] ?? 0) as int,
+      );
+}
+
+class NextcloudHealth {
+  final bool ok;
+  final String? version;
+  final bool? maintenance;
+  final String? error;
+
+  NextcloudHealth({required this.ok, this.version, this.maintenance, this.error});
+
+  factory NextcloudHealth.fromJson(Map<String, dynamic> j) => NextcloudHealth(
+        ok: (j['ok'] ?? false) as bool,
+        version: j['version'] as String?,
+        maintenance: j['maintenance'] as bool?,
+        error: j['error'] as String?,
+      );
+}
+
+class StorageHealth {
+  final bool ok;
+  final double? freeGb;
+  final double? totalGb;
+  final String? error;
+
+  StorageHealth({required this.ok, this.freeGb, this.totalGb, this.error});
+
+  factory StorageHealth.fromJson(Map<String, dynamic> j) => StorageHealth(
+        ok: (j['ok'] ?? false) as bool,
+        freeGb: (j['free_gb'] as num?)?.toDouble(),
+        totalGb: (j['total_gb'] as num?)?.toDouble(),
+        error: j['error'] as String?,
+      );
+}
+
+class Health {
+  final bool ok;
+  final DateTime? checkedAt;
+  final BackendHealth backend;
+  final NextcloudHealth nextcloud;
+  final StorageHealth storage;
+
+  Health({
+    required this.ok,
+    this.checkedAt,
+    required this.backend,
+    required this.nextcloud,
+    required this.storage,
+  });
+
+  factory Health.fromJson(Map<String, dynamic> j) => Health(
+        ok: (j['ok'] ?? false) as bool,
+        checkedAt: _parseDt(j['checked_at'] as String?),
+        backend: BackendHealth.fromJson(j['backend'] as Map<String, dynamic>),
+        nextcloud: NextcloudHealth.fromJson(j['nextcloud'] as Map<String, dynamic>),
+        storage: StorageHealth.fromJson(j['storage'] as Map<String, dynamic>),
+      );
+}
+
 class SetDetail {
   final int id;
   final String dj;

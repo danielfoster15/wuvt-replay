@@ -11,6 +11,7 @@ download URL that supports HTTP range requests (so the player can seek/clip).
 """
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime, timezone
 from urllib.parse import quote
@@ -18,6 +19,8 @@ from urllib.parse import quote
 import httpx
 
 from .cache import TTL_ARCHIVE_META, cache
+
+logger = logging.getLogger("wuvt_replay.archive")
 
 _IDENT_RE = re.compile(r"WUVTFM_(\d{8})_(\d{4})Z", re.IGNORECASE)
 _ARCHIVE_META = "https://archive.org/metadata/{ident}"
@@ -74,13 +77,19 @@ async def resolve(client: httpx.AsyncClient, url: str) -> ArchiveItem | None:
         return None
 
     async def fetch() -> dict | None:
-        r = await client.get(
-            _ARCHIVE_META.format(ident=identifier), headers=_HEADERS, timeout=25.0
-        )
-        r.raise_for_status()
+        try:
+            r = await client.get(
+                _ARCHIVE_META.format(ident=identifier), headers=_HEADERS, timeout=25.0
+            )
+            r.raise_for_status()
+        except httpx.HTTPError as exc:
+            # Re-raise (preserving current behavior); just leave a trace first.
+            logger.warning("archive.org metadata fetch failed for %s: %s", identifier, exc)
+            raise
         data = r.json()
         files = data.get("files") or []
         if not files:
+            logger.info("archive item %s not yet derived (no files)", identifier)
             return None  # not yet derived/available — don't cache as permanent
         # Prefer the VBR MP3 derivative; fall back to any .mp3.
         mp3 = next((f for f in files if f.get("format") == "VBR MP3"), None)
@@ -90,6 +99,7 @@ async def resolve(client: httpx.AsyncClient, url: str) -> ArchiveItem | None:
                 None,
             )
         if mp3 is None:
+            logger.warning("archive item %s has files but no MP3 derivative", identifier)
             return None
         return {
             "name": mp3["name"],

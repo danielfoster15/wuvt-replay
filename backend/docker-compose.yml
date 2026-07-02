@@ -6,8 +6,26 @@ services:
     build: .
     image: wuvt-replay-backend
     restart: unless-stopped
+    # Cap container logs; the default json-file driver is unbounded and would
+    # eventually fill the SD card holding /var/lib/docker.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "8080:8080"
+    extra_hosts:
+      # Lets the container reach services published on the host (Nextcloud :8081).
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Read-only view of the Expansion drive, only for the /health mount check.
+      - /mnt/expansion:/external/expansion:ro
     environment:
       # Days of schedule history to scan for the "sort DJs by latest set" feature.
       - RECENCY_LOOKBACK_DAYS=45
+      # Host-specific /health targets live in an untracked .env next to this
+      # file (compose loads it automatically) — see .env.example. Left unset,
+      # those checks report "not configured".
+      - NEXTCLOUD_STATUS_URL=${NEXTCLOUD_STATUS_URL:-}
+      - EXPANSION_PATH=${EXPANSION_PATH:-}
