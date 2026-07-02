@@ -42,8 +42,10 @@ dependencies:
   permission_handler: ^12.0.3
   # Remembers the last playback position per set (resume where you left off).
   shared_preferences: ^2.3.2
-  # Exact OS alarm to reliably end a break (fires even in Doze / screen off).
+  # Exact OS alarm to reliably end a timer session (fires even in Doze).
   android_alarm_manager_plus: ^4.0.4
+  # Session-end notification when the alarm fires and the app process is gone.
+  flutter_local_notifications: ^19.0.0
 
 dev_dependencies:
   flutter_test:

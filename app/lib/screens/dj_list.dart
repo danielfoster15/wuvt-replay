@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../api.dart';
+import '../config.dart';
 import '../models.dart';
 import '../util.dart';
 import 'dj_detail.dart';
+import 'health.dart';
 
 class DjListScreen extends StatefulWidget {
   const DjListScreen({super.key});
@@ -29,10 +31,91 @@ class _DjListScreenState extends State<DjListScreen> {
 
   void _reload() => setState(() => _future = _api.djs());
 
+  /// Edit the backend URL in place (persisted; falls back to the built-in
+  /// default when cleared) — no rebuild needed to move between LAN/tailnet.
+  Future<void> _editBackendUrl() async {
+    final cfg = BackendConfig.instance;
+    final controller = TextEditingController(text: cfg.url);
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Backend URL'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              decoration: const InputDecoration(
+                hintText: 'http://host:8080',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Default: $defaultBackendUrl',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'reset'),
+            child: const Text('Use default'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, 'save'),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (action == null) return;
+    if (action == 'reset') {
+      await cfg.setOverride(null);
+    } else {
+      final url = controller.text.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('URL must start with http:// or https://')));
+        }
+        return;
+      }
+      await cfg.setOverride(url);
+    }
+    _reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('WUVT DJs')),
+      appBar: AppBar(
+        title: const Text('WUVT DJs'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.monitor_heart_outlined),
+            tooltip: 'Server health',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const HealthScreen()),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Backend URL',
+            onPressed: _editBackendUrl,
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -98,6 +181,9 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final e = error;
+    final message = e is ApiException ? e.message : 'Something went wrong.\n$e';
+    final detail = e is ApiException ? e.detail : null;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -106,8 +192,15 @@ class _ErrorView extends StatelessWidget {
           children: [
             const Icon(Icons.cloud_off, size: 48),
             const SizedBox(height: 12),
-            Text('Could not reach the backend.\n$error',
-                textAlign: TextAlign.center),
+            Text(message, textAlign: TextAlign.center),
+            if (detail != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                detail,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: 12),
             FilledButton(onPressed: onRetry, child: const Text('Retry')),
           ],

@@ -44,8 +44,9 @@ uv venv .venv && uv pip install -e ".[dev]"
 
 | Endpoint        | Returns                                                              |
 |-----------------|---------------------------------------------------------------------|
-| `GET /healthz`  | `{"ok": true}`                                                      |
-| `GET /djs`      | `{djs: [{id, airname}]}` (visible DJs, alphabetical)                |
+| `GET /healthz`  | `{"ok": true}` (liveness only)                                      |
+| `GET /health`   | rollup for the in-app health screen: backend, Nextcloud, storage    |
+| `GET /djs`      | `{djs: [{id, airname, last_set}]}` (recently-on-air first)          |
 | `GET /djs/{id}` | `{dj, sets: [{id, dtstart, dtend, duration_sec}], top_artists}`     |
 | `GET /sets/{id}`| set detail + **clip plan** (see below) + tracklist                  |
 
@@ -85,6 +86,7 @@ so a Pi running it 24/7 is a great fit. Copy `backend/` to the Pi, then:
 
 ```bash
 cd backend
+cp .env.example .env              # optional: fill in the /health check targets
 docker compose up -d --build      # listens on :8080, restarts on boot/crash
 ```
 
@@ -104,11 +106,15 @@ Then bake that address into the APK: `--dart-define=BACKEND_URL=http://<pi-addre
 
 ### Configure the backend URL
 
-`app/lib/config.dart` holds the default. Override at build/run time without editing code:
+`app/lib/config.dart` holds the compile-time default. Override at build/run time
+without editing code:
 
 ```bash
-flutter run --dart-define=BACKEND_URL=https://wuvt-replay.fly.dev
+flutter run --dart-define=BACKEND_URL=http://homecloud.<tailnet>.ts.net:8080
 ```
+
+The URL is also editable **in the app** (gear icon on the DJ list) and persists —
+so you can move between LAN, tailnet, or a hosted backend without rebuilding.
 
 ### Build & run on your Pixel 6a
 
@@ -125,13 +131,31 @@ flutter build apk --release --dart-define=BACKEND_URL=https://wuvt-replay.fly.de
 
 ### Screens
 
-1. **DJs** — searchable list of all DJs.
+1. **DJs** — searchable list of all DJs (recently-on-air first), plus server
+   health and backend-URL settings in the app bar.
 2. **DJ** — their recent sets (date + duration) and most-played bands.
 3. **Now Playing** — play/pause, a seek bar spanning the whole set (across hour boundaries),
-   and the tracklist highlighting the song currently playing.
+   the tracklist highlighting the song currently playing, and the **focus/break timer**.
+
+### Focus & break timer
+
+On Now Playing, pick a duration (1–120 min) and a mode:
+
+- **Focus** — plays the set and stops it after N minutes of *listening*
+  (pausing the music holds the countdown).
+- **Break** — pauses for N minutes wall-clock, then starts the music again as
+  the "back to work" cue. The set plays muted+looping meanwhile so Android
+  keeps the app alive.
+
+Session ends are enforced by **exact OS alarms** (`SCHEDULE_EXACT_ALARM`/
+`USE_EXACT_ALARM`), so they fire on time even in deep Doze; if the app process
+was killed mid-session, a notification delivers the cue instead. Each set also
+**resumes where you left off** across app restarts.
 
 ## Status / roadmap
 
 - ✅ Backend: metadata + clip planner, verified against live WUVT + archive.org.
 - ✅ App: browse DJs/sets, gapless trimmed playback, background/lock-screen controls.
+- ✅ Focus/break timer (Doze-proof via exact alarms) + per-set resume.
+- ✅ Health screen: backend / Nextcloud / Expansion-drive status from the phone.
 - ⏳ Deferred: genres and "most famous bands" (needs an enrichment source like Last.fm/Spotify).

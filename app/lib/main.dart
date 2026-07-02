@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:isolate';
 import 'dart:ui' show IsolateNameServer;
 
@@ -7,12 +8,16 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/material.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
+import 'config.dart';
 import 'focus_timer.dart';
 import 'screens/dj_list.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final onAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  // Load persisted settings before the first screen fires its requests.
+  await BackendConfig.instance.load();
+  unawaited(FocusTimer.instance.restore());
   // Background playback + lock-screen controls (not supported on web).
   if (!kIsWeb) {
     // Standard init (no timeout): the AudioServiceActivity fix already prevents
