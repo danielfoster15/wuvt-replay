@@ -39,7 +39,10 @@ async def _day_latest(client: httpx.AsyncClient, day: date) -> dict[int, datetim
     try:
         data = await wuvt.get_date(client, day.year, day.month, day.day)
     except (httpx.HTTPError, ValueError):
-        data = {"sets": []}
+        # Never cache a failure: a past day caches for a month, so one transient
+        # upstream error would otherwise masquerade as "no sets that day" and
+        # poison DJ recency until the entry expires.
+        return {}
 
     latest: dict[int, datetime] = {}
     for s in data.get("sets", []):
