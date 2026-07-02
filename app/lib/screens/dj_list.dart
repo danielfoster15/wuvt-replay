@@ -4,7 +4,10 @@ import 'package:permission_handler/permission_handler.dart';
 import '../api.dart';
 import '../config.dart';
 import '../models.dart';
+import '../theme.dart';
 import '../util.dart';
+import '../widgets/artwork.dart';
+import '../widgets/mini_player.dart';
 import 'dj_detail.dart';
 import 'health.dart';
 
@@ -100,7 +103,7 @@ class _DjListScreenState extends State<DjListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('WUVT DJs'),
+        title: const Text('WUVT Replay'),
         actions: [
           IconButton(
             icon: const Icon(Icons.monitor_heart_outlined),
@@ -116,16 +119,27 @@ class _DjListScreenState extends State<DjListScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: const MiniPlayer(),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: TextField(
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
+              decoration: InputDecoration(
+                prefixIcon: Icon(Icons.search,
+                    color: wuvtCream.withValues(alpha: 0.5)),
                 hintText: 'Search DJs',
-                border: OutlineInputBorder(),
+                hintStyle:
+                    TextStyle(color: wuvtCream.withValues(alpha: 0.4)),
+                filled: true,
+                fillColor: wuvtSurfaceHi,
                 isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
               ),
               onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
             ),
@@ -146,17 +160,25 @@ class _DjListScreenState extends State<DjListScreen> {
                 if (djs.isEmpty) {
                   return const Center(child: Text('No DJs found'));
                 }
-                return ListView.separated(
+                return ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 8),
                   itemCount: djs.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, i) {
                     final dj = djs[i];
                     return ListTile(
-                      title: Text(dj.airname),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 2),
+                      leading:
+                          ArtTile(seed: dj.airname, size: 48, radius: 24),
+                      title: Text(
+                        dj.airname,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 15),
+                      ),
                       subtitle: dj.lastSet == null
                           ? null
-                          : Text('Last on ${setDate(dj.lastSet)}'),
-                      trailing: const Icon(Icons.chevron_right),
+                          : Text('Last on ${setDate(dj.lastSet)}',
+                              style: Theme.of(context).textTheme.bodySmall),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => DjDetailScreen(dj: dj),
